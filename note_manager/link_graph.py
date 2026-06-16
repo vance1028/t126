@@ -77,13 +77,9 @@ class GraphBuilder:
     def _resolve_links(self, note: Note, graph: NoteGraph):
         for link in note.outgoing_links:
             if link.is_wikilink:
-                target = graph.get_note_by_name(link.target_note_name)
-                if target:
-                    link.target_path = target.path
-                else:
-                    candidates = graph.get_notes_by_name(link.target_note_name)
-                    if candidates:
-                        link.target_path = candidates[0].path
+                candidates = graph.name_to_paths.get(link.target_note_name, [])
+                if len(candidates) == 1:
+                    link.target_path = candidates[0]
             elif link.link_type == LinkType.MARKDOWN_LINK and link.target_path:
                 abs_path = (note.path.parent / link.target_path).resolve()
                 if abs_path in graph.notes:
@@ -92,6 +88,9 @@ class GraphBuilder:
 
     def _get_target_path(self, link: Link, graph: NoteGraph) -> Optional[Path]:
         if link.target_path and link.target_path in graph.notes:
+            candidates = graph.name_to_paths.get(link.target_note_name, []) if link.target_note_name else []
+            if link.is_wikilink and len(candidates) != 1:
+                return None
             return link.target_path
         if link.is_wikilink and link.target_note_name:
             candidates = graph.name_to_paths.get(link.target_note_name, [])
